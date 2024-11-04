@@ -5,6 +5,10 @@ import yfinance as yf
 from pymongo import MongoClient
 from datetime import datetime, timedelta
 import time
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 def fetch_and_store_ohlcv():
     # Connect to MongoDB
@@ -13,9 +17,10 @@ def fetch_and_store_ohlcv():
     client = MongoClient(mongo_uri)
     db = client[database_name]
     tickers_collection = db['tickers']
+    ohlcv_collection = db['ohlcv']
 
-    # Get the list of tickers
-    tickers = tickers_collection.distinct('Ticker')
+    # Get the list of unique tickers
+    tickers = tickers_collection.distinct('ticker')
     print(f"Found {len(tickers)} tickers.")
 
     # Define the date range
@@ -36,15 +41,13 @@ def fetch_and_store_ohlcv():
             # Prepare data for MongoDB
             records = data.to_dict('records')
             for record in records:
-                record['Ticker'] = ticker
-                # Convert Timestamp to datetime
-                if isinstance(record['Date'], pd.Timestamp):
-                    record['Date'] = record['Date'].to_pydatetime()
-                else:
-                    record['Date'] = datetime.strptime(record['Date'], '%Y-%m-%d')
+                record['ticker'] = ticker  # Ensure consistency in field name
+                record['Date'] = record['Date'].to_pydatetime()  # Convert Date to datetime
 
-            # Insert into MongoDB
-            ohlcv_collection.insert_many(records)
+                # Avoid duplicate records by checking for ticker and date
+                if not ohlcv_collection.find_one({'ticker': ticker, 'Date': record['Date']}):
+                    ohlcv_collection.insert_one(record)
+
             print(f"Inserted {len(records)} records for {ticker}.")
 
             # Be polite to yFinance servers
