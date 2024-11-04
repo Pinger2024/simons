@@ -18,15 +18,14 @@ def load_tickers_to_mongo(csv_file):
     # Read the CSV file
     df = pd.read_csv(csv_file)
 
-    # Ensure ticker field is consistent
-    if 'Ticker' in df.columns:
-        df.rename(columns={'Ticker': 'ticker'}, inplace=True)
+    # Rename 'Symbol' to 'ticker' for consistency
+    df.rename(columns={'Symbol': 'ticker'}, inplace=True)
 
     # Insert records, avoiding duplicates
     inserted_count = 0
     for record in df.to_dict(orient='records'):
         # Check if the ticker already exists
-        if not tickers_collection.find_one({'ticker': record['ticker']}):
+        if 'ticker' in record and not tickers_collection.find_one({'ticker': record['ticker']}):
             tickers_collection.insert_one(record)
             inserted_count += 1
 
